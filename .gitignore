@@ -1,0 +1,18 @@
+.venv
+/venv
+venv/
+/_pycache_
+._pycache_
+_pycache_/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environment
+.venv/
+env/
+
+.devcontainer
+.devcontainer/
+devcontainer/
