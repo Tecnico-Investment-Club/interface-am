@@ -41,6 +41,7 @@ def run():
                     "Preço Unit.": round(preco_atual, 2),
                     "Total": round(preco_atual * quantidade, 2)
                 }
+                
                 st.session_state.historico.append(nova_transacao)
                 st.success(f"{tipo} de {quantidade} unidades de {symbol} realizada!")
 
