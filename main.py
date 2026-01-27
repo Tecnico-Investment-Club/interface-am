@@ -10,7 +10,7 @@ st.set_page_config(page_title="AM - Stock Trader", layout="wide")
 TICKERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "PETR4.SA", "VALE3.SA"]
 
 def run():
-    st.title("🚀 AM - Interface Incrível")
+    st.title("AM - Interface Incrível")
     
     # Inicializar histórico na sessão
     if 'historico' not in st.session_state:
@@ -43,6 +43,7 @@ def run():
                 }
                 st.session_state.historico.append(nova_transacao)
                 st.success(f"{tipo} de {quantidade} unidades de {symbol} realizada!")
+
 
         with col2:
             st.subheader(f"Gráfico de {symbol}")
