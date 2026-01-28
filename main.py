@@ -1,79 +1,142 @@
 import streamlit as st
 import pandas as pd
-import yfinance as yf
-from datetime import datetime
+import os
+import time
+from dotenv import load_dotenv
+from broker import AlpacaBroker
 
-# --- Configuração da Página ---
-st.set_page_config(page_title="AM - Stock Trader", layout="wide")
+st.set_page_config(page_title="Trader Profissional", layout="wide")
+load_dotenv()
 
-# --- Lista de Ações Populares ---
-TICKERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "PETR4.SA", "VALE3.SA"]
+# --- INICIALIZAÇÃO ---
+if 'broker' not in st.session_state:
+    api_key = os.getenv("ALPACA_API_KEY")
+    secret_key = os.getenv("ALPACA_SECRET_KEY")
+    try:
+        st.session_state.broker = AlpacaBroker(api_key, secret_key, paper=True)
+    except Exception as e:
+        st.error(f"Erro ao conectar: {e}")
 
 def run():
-    st.title("🚀 AM - Interface Incrível")
+    st.title("🚀 Interface de Trading: Pedro & Cruz")
     
-    # Inicializar histórico na sessão
-    if 'historico' not in st.session_state:
-        st.session_state.historico = []
+    if 'broker' not in st.session_state: return
+    broker = st.session_state.broker
+    
+    # Barra Lateral
+    with st.sidebar:
+        st.header("Conta Alpaca")
+        try:
+            saldo = broker.get_balance()
+            st.metric("Saldo (Paper)", f"${saldo:,.2f}")
+        except:
+            st.error("Erro ao ler saldo")
 
-    tab_order, tab_history, tab_plots = st.tabs(["💸 Negociar", "📜 Histórico", "📈 Análise"])
+    tab_trade, tab_portfolio = st.tabs(["💸 Negociar", "📊 Portfólio"])
 
-    with tab_order:
-        col1, col2 = st.columns([1, 1])
-        
-        with col1:
-            symbol = st.selectbox("Escolha a Ação:", TICKERS)
-            tipo = st.radio("Operação:", ["Compra", "Venda"], horizontal=True)
-            quantidade = st.number_input("Quantidade:", min_value=1, value=10, step=1)
+    # --- ABA NEGOCIAR ---
+    with tab_trade:
+        c1, c2 = st.columns([1, 2])
+        with c1:
+            st.subheader("Nova Ordem")
+            symbol = st.text_input("Ticker", value="AAPL").upper().strip()
             
-            # Obter preço atual via yfinance
-            ticker_data = yf.Ticker(symbol)
-            preco_atual = ticker_data.fast_info['last_price']
-            
-            st.metric(label=f"Preço Atual ({symbol})", value=f"${preco_atual:.2f}")
-            
-            if st.button("Confirmar Transação", use_container_width=True):
-                nova_transacao = {
-                    "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                    "Símbolo": symbol,
-                    "Tipo": tipo,
-                    "Qtd": quantidade,
-                    "Preço Unit.": round(preco_atual, 2),
-                    "Total": round(preco_atual * quantidade, 2)
-                }
+            # 1. Buscar Preço Atual
+            preco_atual = 0
+            if symbol:
+                try:
+                    preco_atual = broker.get_price(symbol)
+                    st.metric(f"Preço {symbol}", f"${preco_atual:.2f}")
+                except:
+                    st.warning(f"Ticker {symbol} não encontrado.")
+
+            if preco_atual > 0:
+                tipo = st.radio("Operação:", ["Compra", "Venda"], horizontal=True)
                 
-                st.session_state.historico.append(nova_transacao)
-                st.success(f"{tipo} de {quantidade} unidades de {symbol} realizada!")
+                # VARIÁVEL PARA A QUANTIDADE FINAL
+                qty = 0.0
 
-        with col2:
-            st.subheader(f"Gráfico de {symbol}")
-            periodo = st.select_slider("Período:", options=["1mo", "3mo", "6mo", "1y"], value="3mo")
-            dados_hist = ticker_data.history(period=periodo)
-            st.line_chart(dados_hist['Close'])
+                # === LÓGICA DE VENDA COM OPÇÃO "TOTAL" ===
+                if tipo == "Venda":
+                    # Verifica quanto temos ANTES de mostrar o input
+                    qtd_tenho = broker.get_position_qty(symbol)
+                    st.caption(f"Disponível em carteira: {qtd_tenho}")
+                    
+                    if qtd_tenho > 0:
+                        vender_tudo = st.checkbox("Vender Tudo (Total)")
+                        
+                        if vender_tudo:
+                            qty = float(qtd_tenho)
+                            st.info(f"Modo Total: Serão vendidas {qty} ações.")
+                        else:
+                            qty = st.number_input("Qtd:", min_value=0.01, value=1.0, step=1.0)
+                    else:
+                        st.warning("Não tens ações deste ativo para vender.")
+                        qty = 0.0 # Bloqueia
 
-    with tab_history:
-        st.subheader("Minhas Transações")
-        if st.session_state.historico:
-            df_hist = pd.DataFrame(st.session_state.historico)
-            st.dataframe(df_hist, use_container_width=True, hide_index=True)
-            
-            # Resumo simples
-            total_investido = df_hist[df_hist['Tipo'] == "Compra"]['Total'].sum()
-            st.write(f"**Total Investido Acumulado:** ${total_investido:,.2f}")
-        else:
-            st.info("Nenhuma transação registada ainda.")
+                # === LÓGICA DE COMPRA (PADRÃO) ===
+                else:
+                    qty = st.number_input("Qtd:", min_value=0.01, value=1.0, step=1.0)
 
-    with tab_plots:
-        if st.session_state.historico:
-            st.subheader("Distribuição da Carteira")
-            df_plot = pd.DataFrame(st.session_state.historico)
-            # Agrupar por símbolo para ver o que o user mais compra
-            composicao = df_plot.groupby("Símbolo")["Qtd"].sum()
-            st.bar_chart(composicao)
-        else:
-            st.warning("Adicione transações para ver a análise da sua carteira.")
+                # Mostra o total estimado se a quantidade for válida
+                if qty > 0:
+                    custo_estimado = preco_atual * qty
+                    st.caption(f"Total estimado: ${custo_estimado:,.2f}")
 
-    st.markdown("---")
+                    if st.button("Confirmar Ordem", use_container_width=True):
+                        validado = True
+                        
+                        # VALIDAÇÃO DE COMPRA (Saldo)
+                        if tipo == "Compra":
+                            saldo_disponivel = broker.get_balance()
+                            if custo_estimado > saldo_disponivel:
+                                st.error(f"❌ Saldo insuficiente! Precisas de ${custo_estimado:.2f}.")
+                                validado = False
+
+                        # VALIDAÇÃO DE VENDA (Posição) - Segurança Extra
+                        elif tipo == "Venda":
+                            # Reconfirmamos a quantidade no momento do clique
+                            qtd_check = broker.get_position_qty(symbol)
+                            if qty > qtd_check:
+                                st.error(f"❌ Erro: Tentaste vender {qty} mas só tens {qtd_check}.")
+                                validado = False
+
+                        if validado:
+                            with st.spinner("A processar..."):
+                                try:
+                                    broker.place_order(symbol, qty, tipo)
+                                    st.success("✅ Ordem Executada!")
+                                    time.sleep(1)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Erro na API: {e}")
+
+        with c2:
+            pass
+
+    # --- ABA PORTFÓLIO ---
+    with tab_portfolio:
+        if st.button("Atualizar"): st.rerun()
+        try:
+            posicoes = broker.get_positions()
+            if posicoes:
+                dados = []
+                for p in posicoes:
+                    lucro_val = float(p.unrealized_pl)
+                    lucro_pct = float(p.unrealized_plpc) * 100
+                    
+                    dados.append({
+                        "Ativo": p.symbol,
+                        "Qtd": float(p.qty),
+                        "Valor Total": f"${float(p.market_value):.2f}",
+                        "Lucro ($)": f"${lucro_val:.2f}",
+                        "Lucro (%)": f"{lucro_pct:.2f}%"
+                    })
+                st.dataframe(pd.DataFrame(dados), use_container_width=True)
+            else:
+                st.info("Carteira Vazia")
+        except Exception as e:
+             st.error(f"Erro ao ler portfólio: {e}")
 
 if __name__ == "__main__":
     run()
