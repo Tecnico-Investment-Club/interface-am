@@ -1,79 +1,115 @@
 import streamlit as st
 import pandas as pd
-import yfinance as yf
+import os, plotly.express as px
+from dotenv import load_dotenv
+from alpaca_trade_api.rest import REST
 from datetime import datetime
 
-# --- Configuração da Página ---
-st.set_page_config(page_title="AM - Stock Trader", layout="wide")
+# --- Config & API ---
+load_dotenv()
 
-# --- Lista de Ações Populares ---
-TICKERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "PETR4.SA", "VALE3.SA"]
+api = REST(os.getenv("ALPACA_API_KEY"), os.getenv("ALPACA_SECRET_KEY"), "https://paper-api.alpaca.markets")
+
+st.set_page_config(page_title="Minimal Trader", layout="centered")
 
 def run():
-    st.title("🚀 AM - Interface Incrível")
+    st.title("📈 Pedro e Cruz a Bombar")
     
-    # Inicializar histórico na sessão
     if 'historico' not in st.session_state:
         st.session_state.historico = []
 
-    tab_order, tab_history, tab_plots = st.tabs(["💸 Negociar", "📜 Histórico", "📈 Análise"])
+    # 1. CÁLCULO DE CUSTÓDIA
+    posicoes = {}
+    for t in st.session_state.historico:
+        s, q, tipo, total = t['Símbolo'], t['Qtd'], t['Tipo'], t['Total']
+        if s not in posicoes: posicoes[s] = {'qtd': 0, 'custo_total': 0}
+        if tipo == "Buy":
+            posicoes[s]['qtd'] += q
+            posicoes[s]['custo_total'] += total
+        else:
+            if posicoes[s]['qtd'] > 0:
+                p_medio = posicoes[s]['custo_total'] / posicoes[s]['qtd']
+                posicoes[s]['qtd'] -= q
+                posicoes[s]['custo_total'] -= (p_medio * q)
 
-    with tab_order:
-        col1, col2 = st.columns([1, 1])
+    custodia = {s: v for s, v in posicoes.items() if v['qtd'] > 0}
+
+    tab_trade, tab_portfolio, tab_hist = st.tabs(["💸 Negociar", "📊 Portfólio", "📜 Histórico"])
+
+    with tab_trade:
+        st.subheader("Nova Operação")
+        symbol = st.text_input("Ticker (ex: AAPL)", value="").upper().strip()
         
-        with col1:
-            symbol = st.selectbox("Escolha a Ação:", TICKERS)
-            tipo = st.radio("Operação:", ["Compra", "Venda"], horizontal=True)
-            quantidade = st.number_input("Quantidade:", min_value=1, value=10, step=1)
-            
-            # Obter preço atual via yfinance
-            ticker_data = yf.Ticker(symbol)
-            preco_atual = ticker_data.fast_info['last_price']
-            
-            st.metric(label=f"Preço Atual ({symbol})", value=f"${preco_atual:.2f}")
-            
-            if st.button("Confirmar Transação", use_container_width=True):
-                nova_transacao = {
-                    "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                    "Símbolo": symbol,
-                    "Tipo": tipo,
-                    "Qtd": quantidade,
-                    "Preço Unit.": round(preco_atual, 2),
-                    "Total": round(preco_atual * quantidade, 2)
-                }
+        # Só avançamos se o utilizador escreveu algo
+        if symbol:
+            try:
+                # Tentativa real de obter o preço
+                trade = api.get_latest_trade(symbol)
+                price = trade.price
                 
-                st.session_state.historico.append(nova_transacao)
-                st.success(f"{tipo} de {quantidade} unidades de {symbol} realizada!")
+                st.success(f"Preço de Mercado: ${price:,.2f}")
+                qtd = st.number_input("Quantidade", min_value=1, value=1)
+                
+                qtd_atual = custodia.get(symbol, {}).get('qtd', 0)
+                st.caption(f"Saldo em carteira: {qtd_atual} unidades")
 
-        with col2:
-            st.subheader(f"Gráfico de {symbol}")
-            periodo = st.select_slider("Período:", options=["1mo", "3mo", "6mo", "1y"], value="3mo")
-            dados_hist = ticker_data.history(period=periodo)
-            st.line_chart(dados_hist['Close'])
+                c1, c2 = st.columns(2)
+                # Os botões de submissão agora estão CONDICIONADOS ao preço existir
+                if c1.button(f"Comprar {symbol}", use_container_width=True):
+                    st.session_state.historico.append({
+                        "Data": datetime.now().strftime("%H:%M:%S"), 
+                        "Símbolo": symbol, 
+                        "Tipo": "Buy", 
+                        "Qtd": qtd, 
+                        "Total": price * qtd
+                    })
+                    st.rerun()
+                
+                if c2.button(f"Vender {symbol}", use_container_width=True, disabled=(qtd_atual < qtd), type="primary"):
+                    st.session_state.historico.append({
+                        "Data": datetime.now().strftime("%H:%M:%S"), 
+                        "Símbolo": symbol, 
+                        "Tipo": "Sell", 
+                        "Qtd": qtd, 
+                        "Total": price * qtd
+                    })
+                    st.rerun()
+                    
+            except Exception:
+                # Se a API der erro, não mostramos botões nem permitimos compra
+                st.warning("Ticker inválido ou não encontrado na Alpaca.")
+        else:
+            st.info("Digita um ticker para começar.")
 
-    with tab_history:
-        st.subheader("Minhas Transações")
-        if st.session_state.historico:
-            df_hist = pd.DataFrame(st.session_state.historico)
-            st.dataframe(df_hist, use_container_width=True, hide_index=True)
+    with tab_portfolio:
+        if custodia:
+            dados_p = []
+            for s, v in custodia.items():
+                try:
+                    p_atual = api.get_latest_trade(s).price
+                    v_mercado = p_atual * v['qtd']
+                    dados_p.append({
+                        "Ativo": s, 
+                        "Qtd": v['qtd'], 
+                        "Custo Médio": f"${(v['custo_total']/v['qtd']):,.2f}", 
+                        "Valor Atual": v_mercado
+                    })
+                except: continue
             
-            # Resumo simples
-            total_investido = df_hist[df_hist['Tipo'] == "Compra"]['Total'].sum()
-            st.write(f"**Total Investido Acumulado:** ${total_investido:,.2f}")
+            if dados_p:
+                df_p = pd.DataFrame(dados_p)
+                st.table(df_p.set_index("Ativo"))
+                fig = px.pie(df_p, values='Valor Atual', names='Ativo', hole=0.5)
+                st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("Nenhuma transação registada ainda.")
+            st.info("Carteira vazia.")
 
-    with tab_plots:
+    with tab_hist:
         if st.session_state.historico:
-            st.subheader("Distribuição da Carteira")
-            df_plot = pd.DataFrame(st.session_state.historico)
-            # Agrupar por símbolo para ver o que o user mais compra
-            composicao = df_plot.groupby("Símbolo")["Qtd"].sum()
-            st.bar_chart(composicao)
-        else:
-            st.warning("Adicione transações para ver a análise da sua carteira.")
-
-    st.markdown("---")
+            st.dataframe(pd.DataFrame(st.session_state.historico), use_container_width=True)
+            if st.button("Limpar Tudo"):
+                st.session_state.historico = []
+                st.rerun()
 
 if __name__ == "__main__":
     run()
