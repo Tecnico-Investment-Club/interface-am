@@ -1,8 +1,10 @@
 from alpaca.trading.client import TradingClient
-from alpaca.trading.requests import MarketOrderRequest
-from alpaca.trading.enums import OrderSide, TimeInForce
+from alpaca.trading.requests import MarketOrderRequest, GetOrdersRequest
+from alpaca.trading.enums import OrderSide, TimeInForce, QueryOrderStatus
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockLatestTradeRequest
+from alpaca.trading.requests import GetAssetsRequest
+from alpaca.trading.enums import AssetStatus
 from .base import BrokerBase
 
 class AlpacaBroker(BrokerBase):
@@ -33,9 +35,22 @@ class AlpacaBroker(BrokerBase):
         return trades[symbol].price
 
     def get_position_qty(self, symbol: str):
-        """Tenta buscar a posição. Se der erro (404), significa que não temos nada."""
         try:
             pos = self.trading_client.get_open_position(symbol)
             return float(pos.qty)
         except:
             return 0.0
+
+    def get_orders_history(self):
+        # Busca as últimas 50 ordens (fechadas e abertas)
+        req = GetOrdersRequest(status=QueryOrderStatus.ALL, limit=500, nested=True)
+        return self.trading_client.get_orders(filter=req)
+    
+    def get_all_assets(self):
+        """Busca ativos. Para ser rápido, filtramos apenas os ativos negociáveis."""
+        search_params = GetAssetsRequest(status=AssetStatus.ACTIVE)
+        assets = self.trading_client.get_all_assets(search_params)
+        
+        # Retorna apenas uma lista simples de strings: ['AAPL', 'MSFT', 'TSLA', ...]
+        # Filtramos para ter certeza que é 'tradable' (negociável)
+        return [asset.symbol for asset in assets if asset.tradable]

@@ -24,5 +24,14 @@ class BrokerBase(ABC):
 
     @abstractmethod
     def get_position_qty(self, symbol: str):
-        """Retorna a quantidade que tenho de um ativo específico (0 se não tiver)."""
+        """Retorna a quantidade que tenho de um ativo específico."""
+        pass
+
+    @abstractmethod
+    def get_orders_history(self):
+        """Retorna a lista de todas as ordens (histórico)."""
+        pass
+
+    def get_all_assets(self):
+        """Retorna uma lista de ativos negociáveis."""
         pass
