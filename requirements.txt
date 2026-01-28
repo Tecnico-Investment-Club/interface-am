@@ -2,3 +2,5 @@ numpy
 streamlit
 plotly
 yfinance
+dotenv
+alpaca-trade-api
