@@ -7,7 +7,7 @@ from datetime import datetime
 
 # --- Config & API ---
 load_dotenv()
-# Nota: Removi o /v2 do BASE_URL pois a lib REST trata disso internamente
+
 api = REST(os.getenv("ALPACA_API_KEY"), os.getenv("ALPACA_SECRET_KEY"), "https://paper-api.alpaca.markets")
 
 st.set_page_config(page_title="Minimal Trader", layout="centered")
