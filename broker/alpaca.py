@@ -37,20 +37,25 @@ class AlpacaBroker(BrokerBase):
     def get_position_qty(self, symbol: str):
         try:
             pos = self.trading_client.get_open_position(symbol)
-            return float(pos.qty)
+            # Usamos qty_available para garantir que não vendemos o que está preso
+            return float(pos.qty_available)
         except:
             return 0.0
 
     def get_orders_history(self):
-        # Busca as últimas 50 ordens (fechadas e abertas)
         req = GetOrdersRequest(status=QueryOrderStatus.ALL, limit=500, nested=True)
         return self.trading_client.get_orders(filter=req)
     
+    # --- NOVAS FUNÇÕES ---
+    def get_pending_orders(self):
+        # Busca apenas ordens ABERTAS (OPEN)
+        req = GetOrdersRequest(status=QueryOrderStatus.OPEN, limit=100, nested=True)
+        return self.trading_client.get_orders(filter=req)
+
+    def cancel_order(self, order_id: str):
+        self.trading_client.cancel_order_by_id(order_id)
+
     def get_all_assets(self):
-        """Busca ativos. Para ser rápido, filtramos apenas os ativos negociáveis."""
         search_params = GetAssetsRequest(status=AssetStatus.ACTIVE)
         assets = self.trading_client.get_all_assets(search_params)
-        
-        # Retorna apenas uma lista simples de strings: ['AAPL', 'MSFT', 'TSLA', ...]
-        # Filtramos para ter certeza que é 'tradable' (negociável)
         return [asset.symbol for asset in assets if asset.tradable]

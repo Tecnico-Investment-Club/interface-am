@@ -32,6 +32,16 @@ class BrokerBase(ABC):
         """Retorna a lista de todas as ordens (histórico)."""
         pass
 
+    @abstractmethod
+    def get_pending_orders(self):
+        """Retorna apenas as ordens abertas (pendentes)."""
+        pass
+
+    @abstractmethod
+    def cancel_order(self, order_id: str):
+        """Cancela uma ordem específica pelo ID."""
+        pass
+
     def get_all_assets(self):
         """Retorna uma lista de ativos negociáveis."""
         pass
