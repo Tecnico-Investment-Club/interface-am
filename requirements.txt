@@ -1,6 +1,4 @@
-numpy
 streamlit
-plotly
-yfinance
-dotenv
-alpaca-trade-api
+pandas
+alpaca-py
+python-dotenv

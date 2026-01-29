@@ -1,0 +1,12 @@
+Para se ligar à API, fazer login no site da Alpaca e ativar o 2F.
+Copiar as API keys e colá-las num ficheiro .env com este formato:
+"ALPACA_API_KEY=PRIMEIRA-KEY
+ALPACA_SECRET_KEY=SEGUNDA-KEY"
+
+Correr para instalar dependências:
+
+pip install -r requirements.txt
+
+Para correr o código:
+streamlit run main.py
+
