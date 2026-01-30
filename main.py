@@ -88,7 +88,7 @@ def tela_login():
                 try:
                     st.session_state.broker = AlpacaBroker(api_key, secret_key, paper=True)
                     if role == 'admin':
-                        st.success(f"Bem-vindo, Chefe! Acedendo ao {user_choice}...")
+                        st.success(f"Bem-vindo! Acedendo ao {user_choice}...")
                     else:
                         st.info(f"Modo Leitura: Acedendo ao {user_choice}...")
                     

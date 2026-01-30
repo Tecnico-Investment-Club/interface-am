@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  app:
+    # Nome da imagem que será criada
+    image: interface-am-img
+    
+    # Constrói a partir da pasta atual
+    build: .
+    
+    # Nome fixo do contentor (para aparecer bonito no 'docker ps')
+    container_name: interface-am-v1
+
+    # Carrega as passwords do teu ficheiro oculto
+    env_file:
+      - .env
+
+    # Portas: Aqui é diferente do teu exemplo!
+    # O teu exemplo usa 127.0.0.1 (só localhost).
+    # Como queres aceder via browser, usamos a porta aberta:
+    ports:
+      - "8501:8501"
+
+    # Se o servidor reiniciar, este arranca sozinho
+    restart: always
+
+    # Configuração de logs para não encher o disco (igual ao teu exemplo)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+root@tic-server:~/inter
