@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from broker import AlpacaBroker
 
 # --- SETUP INICIAL ---
-st.set_page_config(page_title="Trader Pro", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Interface Trading", layout="wide", initial_sidebar_state="expanded")
 load_dotenv()
 
 # --- CONFIGURAÇÃO DOS 3 PORTFÓLIOS ---
@@ -31,7 +31,7 @@ PORTFOLIOS = {
 
 # --- TELA DE LOGIN ---
 def tela_login():
-    st.markdown("<h1 style='text-align: center;'>🔐 Acesso aos Portfólios</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>Acesso aos Portfólios</h1>", unsafe_allow_html=True)
     st.write("")
     
     col1, col2, col3 = st.columns([1, 1, 1])
@@ -52,7 +52,7 @@ def tela_login():
             
             with c_btn2:
                 # Botão Secundário (Guest)
-                submit_guest = st.form_submit_button("👀 Visitante", use_container_width=True, type="secondary")
+                submit_guest = st.form_submit_button("Visitante", use_container_width=True, type="secondary")
             
             # --- LÓGICA DE LOGIN ---
             auth_success = False
@@ -105,9 +105,9 @@ def interface_trading():
         st.write(f"Logado em: **{st.session_state['portfolio_name']}**")
         
         if user_role == 'guest':
-            st.warning("👀 MODO VISITANTE\n(Apenas Leitura)")
+            st.warning("MODO VISITANTE\n(Apenas Leitura)")
         else:
-            st.success("🔑 MODO ADMIN\n(Acesso Total)")
+            st.success("MODO ADMIN\n(Acesso Total)")
 
         if st.button("Sair / Logout", type="secondary"):
             st.session_state['logged_in'] = False
@@ -123,7 +123,7 @@ def interface_trading():
         except:
             st.error("Erro ao ler saldo")
 
-    st.title(f"🚀 Painel de Trading: {st.session_state['portfolio_name']}")
+    st.title(f"Painel de Trading: {st.session_state['portfolio_name']}")
     
     if 'broker' not in st.session_state:
         st.error("Erro de sessão. Faz login novamente.")
@@ -256,7 +256,7 @@ def interface_trading():
                                 st.rerun()
                         st.divider()
                 else:
-                    st.success("Tudo limpo! ✨")
+                    st.success("Tudo limpo! Sem ordens pendentes.")
             except Exception as e:
                 st.error(f"Erro: {e}")
 
