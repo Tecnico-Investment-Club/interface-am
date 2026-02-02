@@ -4,15 +4,10 @@ import os
 import time
 from dotenv import load_dotenv
 from broker import AlpacaBroker
-import bcrypt
-from pathlib import Path # 
 
 # --- SETUP INICIAL ---
 st.set_page_config(page_title="Interface Trading", layout="wide", initial_sidebar_state="expanded")
-
-
-env_path = Path(__file__).parent / '.env'
-load_dotenv(dotenv_path=env_path)
+load_dotenv()
 
 # --- CONFIGURAÇÃO DOS 3 PORTFÓLIOS ---
 PORTFOLIOS = {
@@ -46,14 +41,16 @@ def tela_login():
             user_choice = st.selectbox("Selecionar Portfólio:", list(PORTFOLIOS.keys()))
             password_input = st.text_input("Senha de Acesso (Para Admins):", type="password")
             
-            st.write("") 
+            st.write("") # Espaço estético
             
             c_btn1, c_btn2 = st.columns(2)
             
             with c_btn1:
+                # Botão Principal (Admin)
                 submit_admin = st.form_submit_button("🔑 Entrar (Admin)", use_container_width=True, type="primary")
             
             with c_btn2:
+                # Botão Secundário (Guest)
                 submit_guest = st.form_submit_button("Visitante", use_container_width=True, type="secondary")
             
             # --- LÓGICA DE LOGIN ---
@@ -62,31 +59,15 @@ def tela_login():
 
             if submit_admin:
                 config = PORTFOLIOS[user_choice]
-                
-                # Leitura da variável bruta
-                raw_hash = os.getenv(config["pass_env"])
-
-                if not raw_hash:
-                    st.error(f"⚠️ Erro Crítico: Não consegui ler {config['pass_env']} do ficheiro .env")
-                    st.caption("Dica: Verifique se o ficheiro .env está na mesma pasta que o ficheiro main.py")
+                if config["pass_env"] not in os.environ:
+                    st.error(f"Erro: Variável {config['pass_env']} não encontrada no .env")
                 else:
-                    hash_salvo = raw_hash.strip().replace('"', '').replace("'", "")
-                    
-                    try:
-                        # Converter inputs para bytes
-                        input_bytes = password_input.encode('utf-8')
-                        hash_bytes = hash_salvo.encode('utf-8')
-                        
-                        # Verificar senha
-                        if bcrypt.checkpw(input_bytes, hash_bytes):
-                            auth_success = True
-                            role = "admin"
-                        else:
-                            st.error("❌ Senha Incorreta!")
-                    except ValueError as e:
-                        st.error(f"O formato do hash no .env está inválido. Detalhe: {e}")
-                    except Exception as e:
-                        st.error(f"Erro inesperado: {e}")
+                    senha_correta = os.getenv(config["pass_env"])
+                    if password_input == senha_correta:
+                        auth_success = True
+                        role = "admin"
+                    else:
+                        st.error("❌ Senha Incorreta!")
 
             elif submit_guest:
                 auth_success = True
@@ -99,9 +80,8 @@ def tela_login():
                 st.session_state['user_role'] = role
                 
                 config = PORTFOLIOS[user_choice]
-                # Limpeza preventiva também nas chaves API
-                api_key = os.getenv(config["key_env"], "").strip().replace('"', '')
-                secret_key = os.getenv(config["sec_env"], "").strip().replace('"', '')
+                api_key = os.getenv(config["key_env"])
+                secret_key = os.getenv(config["sec_env"])
                 
                 try:
                     st.session_state.broker = AlpacaBroker(api_key, secret_key, paper=True)
@@ -149,13 +129,14 @@ def interface_trading():
 
     broker = st.session_state.broker
     
-    @st.cache_data(ttl=360) 
+    @st.cache_data(ttl=3600)
     def get_assets():
         try: return broker.get_all_assets()
         except: return ["AAPL", "TSLA", "MSFT"]
 
     lista_ativos = get_assets()
 
+    # --- DEFINIÇÃO DAS ABAS ---
     if user_role == 'admin':
         tab_trade, tab_portfolio, tab_pending, tab_history = st.tabs(["💸 Negociar", "📊 Portfólio", "⏳ Pendentes", "📜 Histórico"])
     else:
@@ -163,6 +144,7 @@ def interface_trading():
         tab_trade = None
         tab_pending = None
 
+    # --- ABA 1: Negociar (SÓ ADMIN) ---
     if user_role == 'admin' and tab_trade:
         with tab_trade:
             c1, c2 = st.columns([1, 2])
@@ -228,6 +210,7 @@ def interface_trading():
                                         st.error(f"Erro: {e}")
             with c2: pass
 
+    # --- ABA 2: Portfólio (TODOS VEEM) ---
     with tab_portfolio:
         if st.button("Atualizar Carteira"): st.rerun()
         try:
@@ -248,6 +231,7 @@ def interface_trading():
         except Exception as e:
              st.error(f"Erro: {e}")
 
+    # --- ABA 3: Pendentes (SÓ ADMIN) ---
     if user_role == 'admin' and tab_pending:
         with tab_pending:
             st.subheader("Ordens na Fila")
@@ -273,6 +257,7 @@ def interface_trading():
             except Exception as e:
                 st.error(f"Erro: {e}")
 
+    # --- ABA 4: Histórico (TODOS VEEM) ---
     with tab_history:
         if st.button("Atualizar Histórico"): st.rerun()
         try:
@@ -288,6 +273,7 @@ def interface_trading():
                         "Preço": f"${float(o.filled_avg_price):.2f}" if o.filled_avg_price else "-",
                         "Status": o.status.upper()
                     })
+                
                 st.dataframe(pd.DataFrame(dados_hist), width="stretch")
             else:
                 st.info("Sem histórico.")

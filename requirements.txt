@@ -2,4 +2,3 @@ streamlit
 pandas
 alpaca-py
 python-dotenv
-bcrypt
