@@ -37,7 +37,6 @@ class AlpacaBroker(BrokerBase):
     def get_position_qty(self, symbol: str):
         try:
             pos = self.trading_client.get_open_position(symbol)
-            # Usamos qty_available para garantir que não vendemos o que está preso
             return float(pos.qty_available)
         except:
             return 0.0
@@ -46,9 +45,7 @@ class AlpacaBroker(BrokerBase):
         req = GetOrdersRequest(status=QueryOrderStatus.ALL, limit=500, nested=True)
         return self.trading_client.get_orders(filter=req)
     
-    # --- NOVAS FUNÇÕES ---
     def get_pending_orders(self):
-        # Busca apenas ordens ABERTAS (OPEN)
         req = GetOrdersRequest(status=QueryOrderStatus.OPEN, limit=100, nested=True)
         return self.trading_client.get_orders(filter=req)
 

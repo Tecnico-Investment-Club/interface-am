@@ -4,6 +4,7 @@ import os
 import time
 from dotenv import load_dotenv
 from broker import AlpacaBroker
+import bcrypt
 
 # --- SETUP INICIAL ---
 st.set_page_config(page_title="Interface Trading", layout="wide", initial_sidebar_state="expanded")
@@ -22,7 +23,6 @@ PORTFOLIOS = {
         "pass_env": "PASS_HORIZON"
     },
     "📈 Market Plus": {
-        # Atualizei aqui as chaves para MARKET_PLUS como pediste
         "key_env": "API_KEY_MARKET_PLUS",
         "sec_env": "SECRET_KEY_MARKET_PLUS",
         "pass_env": "PASS_MARKET_PLUS"
@@ -42,16 +42,14 @@ def tela_login():
             user_choice = st.selectbox("Selecionar Portfólio:", list(PORTFOLIOS.keys()))
             password_input = st.text_input("Senha de Acesso (Para Admins):", type="password")
             
-            st.write("") # Espaço estético
+            st.write("") 
             
             c_btn1, c_btn2 = st.columns(2)
             
             with c_btn1:
-                # Botão Principal (Admin)
                 submit_admin = st.form_submit_button("🔑 Entrar (Admin)", use_container_width=True, type="primary")
             
             with c_btn2:
-                # Botão Secundário (Guest)
                 submit_guest = st.form_submit_button("Visitante", use_container_width=True, type="secondary")
             
             # --- LÓGICA DE LOGIN ---
@@ -60,16 +58,26 @@ def tela_login():
 
             if submit_admin:
                 config = PORTFOLIOS[user_choice]
-                # Tenta buscar a senha. Se não existir no .env, avisa.
+                
                 if config["pass_env"] not in os.environ:
                     st.error(f"Erro: Variável {config['pass_env']} não encontrada no .env")
                 else:
-                    senha_correta = os.getenv(config["pass_env"])
-                    if password_input == senha_correta:
-                        auth_success = True
-                        role = "admin"
-                    else:
-                        st.error("❌ Senha Incorreta!")
+                    # 1. Buscar o HASH salvo no .env
+                    hash_salvo = os.getenv(config["pass_env"])
+                    
+                    # 2. Converter input e hash para bytes (necessário para o bcrypt)
+                    input_bytes = password_input.encode('utf-8')
+                    hash_bytes = hash_salvo.encode('utf-8')
+                    
+                    # 3. Verificar se a senha bate com o hash
+                    try:
+                        if bcrypt.checkpw(input_bytes, hash_bytes):
+                            auth_success = True
+                            role = "admin"
+                        else:
+                            st.error("❌ Senha Incorreta!")
+                    except ValueError:
+                        st.error("Erro no formato do hash no .env (Verifique se gerou corretamente)")
 
             elif submit_guest:
                 auth_success = True
@@ -227,7 +235,6 @@ def interface_trading():
                         "Total": f"${float(p.market_value):.2f}",
                         "Lucro (%)": f"{lucro:.2f}%"
                     })
-                # CORREÇÃO AQUI: mudado de use_container_width=True para width="stretch"
                 st.dataframe(pd.DataFrame(dados), width="stretch")
             else:
                 st.info("Carteira Vazia")
@@ -277,7 +284,6 @@ def interface_trading():
                         "Status": o.status.upper()
                     })
                 
-                # CORREÇÃO AQUI TAMBÉM: mudado de use_container_width=True para width="stretch"
                 st.dataframe(pd.DataFrame(dados_hist), width="stretch")
             else:
                 st.info("Sem histórico.")
