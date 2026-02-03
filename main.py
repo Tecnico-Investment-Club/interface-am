@@ -95,9 +95,51 @@ def tela_login():
                 except Exception as e:
                     st.error(f"Erro ao conectar API: {e}")
 
+# --- FUNÇÃO AUXILIAR PARA CALCULAR SALDO REAL (Cash - Pendentes) ---
+def get_saldo_disponivel(broker):
+    """
+    Calcula o saldo subtraindo o valor estimado das ordens de compra pendentes.
+    """
+    saldo_atual = broker.get_balance()
+    custo_pendente = 0.0
+    
+    try:
+        pendentes = broker.get_pending_orders()
+        if pendentes:
+            for ordem in pendentes:
+                if ordem.side == 'buy':
+                    valor_ordem = 0.0
+                    if hasattr(ordem, 'notional') and ordem.notional is not None:
+                         valor_ordem = float(ordem.notional)
+                    else:
+                        try:
+                            preco = broker.get_price(ordem.symbol)
+                            valor_ordem = float(ordem.qty) * preco
+                        except:
+                            valor_ordem = 0 
+                    
+                    custo_pendente += valor_ordem
+    except Exception as e:
+        print(f"Erro ao calcular pendentes: {e}")
+        
+    return saldo_atual, custo_pendente
+
 # --- APP PRINCIPAL (TRADING) ---
 def interface_trading():
     user_role = st.session_state.get('user_role', 'guest')
+
+    if 'broker' not in st.session_state:
+        st.error("Erro de sessão. Faz login novamente.")
+        return
+
+    broker = st.session_state.broker
+
+    # Calcular saldos para exibição na Sidebar
+    try:
+        saldo_bruto, em_pendentes = get_saldo_disponivel(broker)
+        saldo_liquido = saldo_bruto - em_pendentes
+    except:
+        saldo_bruto, em_pendentes, saldo_liquido = 0, 0, 0
 
     with st.sidebar:
         st.write(f"Logado em: **{st.session_state['portfolio_name']}**")
@@ -115,19 +157,15 @@ def interface_trading():
             
         st.divider()
         st.header("Conta Alpaca")
-        try:
-            saldo = st.session_state.broker.get_balance()
-            st.metric("Saldo (Paper)", f"${saldo:,.2f}")
-        except:
-            st.error("Erro ao ler saldo")
+        
+        st.metric("Saldo Contabilístico", f"${saldo_bruto:,.2f}")
+        if em_pendentes > 0:
+            st.caption(f"⛔ Preso em ordens: -${em_pendentes:,.2f}")
+            st.metric("Poder de Compra Real", f"${saldo_liquido:,.2f}", delta_color="normal")
+        else:
+            st.caption("Sem ordens de compra pendentes.")
 
     st.title(f"Painel de Trading: {st.session_state['portfolio_name']}")
-    
-    if 'broker' not in st.session_state:
-        st.error("Erro de sessão. Faz login novamente.")
-        return
-
-    broker = st.session_state.broker
     
     @st.cache_data(ttl=3600)
     def get_assets():
@@ -186,12 +224,20 @@ def interface_trading():
                     
                     if st.button("Confirmar Ordem", width="stretch", disabled=botao_bloqueado):
                         validado = True
-                        if tipo == "Compra" and custo > broker.get_balance():
-                            st.error("❌ Saldo insuficiente!")
-                            validado = False
-                        elif tipo == "Venda" and qty > broker.get_position_qty(symbol):
-                            st.error("❌ Ações insuficientes!")
-                            validado = False
+                        
+                        balanco_atual, preso_pendentes = get_saldo_disponivel(broker)
+                        poder_compra_real = balanco_atual - preso_pendentes
+
+                        if tipo == "Compra":
+                            if custo > poder_compra_real:
+                                st.error(f"❌ Saldo Insuficiente! Tens ${preso_pendentes:.2f} presos em ordens pendentes.")
+                                st.info(f"Disponível Real: ${poder_compra_real:.2f}")
+                                validado = False
+                        
+                        elif tipo == "Venda":
+                            if qty > broker.get_position_qty(symbol):
+                                st.error("❌ Ações insuficientes!")
+                                validado = False
                         
                         if validado:
                             with st.spinner("A processar..."):
