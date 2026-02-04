@@ -15,6 +15,15 @@ class AlpacaBroker(BrokerBase):
     def get_balance(self):
         account = self.trading_client.get_account()
         return float(account.cash)
+    
+    def get_account_summary(self):
+        """Retorna Equity (Total), Cash e Poder de Compra"""
+        account = self.trading_client.get_account()
+        return {
+            "equity": float(account.equity),
+            "cash": float(account.cash),
+            "buying_power": float(account.buying_power)
+        }
 
     def place_order(self, symbol: str, qty: float, side: str):
         order_side = OrderSide.BUY if side.lower() == "compra" else OrderSide.SELL
