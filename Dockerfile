@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 8501
 
 # Comando para iniciar a aplicação quando o contentor arrancar
-CMD ["streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "src/main.py", "--server.port=8501", "--server.address=0.0.0.0"]
