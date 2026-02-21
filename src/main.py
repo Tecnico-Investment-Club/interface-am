@@ -7,7 +7,7 @@ from ui.auth import tela_login
 from ui.dashboard import interface_trading
 
 # 1. Configuração Global (Deve ser a primeira linha de Streamlit)
-st.set_page_config(page_title="Interface Trading", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Trading Interface", layout="wide", initial_sidebar_state="expanded")
 
 # 2. Carregar Variáveis de Ambiente
 # Como o main.py está em /src, o .env está na pasta acima (..)

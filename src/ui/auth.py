@@ -5,22 +5,22 @@ from broker import AlpacaBroker
 from config import PORTFOLIOS   
 
 def tela_login():
-    st.markdown("<h1 style='text-align: center;'>Acesso aos Portfólios</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>Portfolio Access</h1>", unsafe_allow_html=True)
     st.write("")
     
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
         with st.form(key='login_form', border=True):
-            st.subheader("Autenticação")
+            st.subheader("Authentication")
             
-            user_choice = st.selectbox("Selecionar Portfólio:", list(PORTFOLIOS.keys()))
-            password_input = st.text_input("Senha de Acesso (Para Admins):", type="password")
+            user_choice = st.selectbox("Select Portfolio:", list(PORTFOLIOS.keys()))
+            password_input = st.text_input("Access Password (For Admins):", type="password")
             
             st.write("") 
             
             c1, c2 = st.columns(2)
-            with c1: submit_admin = st.form_submit_button("🔑 Entrar", width="stretch", type="primary")
-            with c2: submit_guest = st.form_submit_button("Visitante", width="stretch", type="secondary")
+            with c1: submit_admin = st.form_submit_button("🔑 Login", width="stretch", type="primary")
+            with c2: submit_guest = st.form_submit_button("Guest", width="stretch", type="secondary")
             
             auth_success = False
             role = ""
@@ -29,7 +29,7 @@ def tela_login():
                 config_port = PORTFOLIOS[user_choice]
                 
                 if config_port["pass_env"] not in os.environ:
-                    st.error(f"Erro: Variável {config_port['pass_env']} em falta.")
+                    st.error(f"Error: Variable {config_port['pass_env']} is missing.")
                 else:
                     # Comparação Simples (Revertida como pediste)
                     senha_correta = os.getenv(config_port["pass_env"])
@@ -37,7 +37,7 @@ def tela_login():
                         auth_success = True
                         role = "admin"
                     else:
-                        st.error("❌ Senha Incorreta!")
+                        st.error("❌ Incorrect Password!")
 
             elif submit_guest:
                 auth_success = True
@@ -55,8 +55,8 @@ def tela_login():
                 
                 try:
                     st.session_state.broker = AlpacaBroker(api, sec, paper=True)
-                    st.success(f"Bem-vindo ao {user_choice}!")
+                    st.success(f"Welcome to {user_choice}!")
                     time.sleep(1)
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Erro ao conectar API: {e}")
+                    st.error(f"API Connection Error: {e}")
