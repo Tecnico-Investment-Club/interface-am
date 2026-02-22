@@ -62,26 +62,28 @@ def render_tab_trade(broker, saldo_disp):
             except: st.warning("Price N/A")
             
         if preco > 0:
-            tipo = st.radio("Side:", ["Buy", "Sell"], horizontal=True)
+            tipo_ui = st.radio("Side:", ["Buy", "Sell"], horizontal=True)
+            tipo = tipo_ui.lower()
+            
             qty = 0.0
 
-            # Verifica Conflitos
+            # Verifica Conflitos usando sempre minúsculas
             bloqueio_conflito = False
             msg_conflito = ""
             try:
                 pendentes = broker.get_pending_orders()
                 for p in pendentes:
                     if p.symbol == symbol:
-                        if tipo == "Buy" and p.side == 'sell':
+                        if tipo == 'buy' and p.side == 'sell':
                             bloqueio_conflito = True
                             msg_conflito = f"⛔ You have a pending SELL of {p.qty}!"
-                        elif tipo == "Sell" and p.side == 'buy':
+                        elif tipo == 'sell' and p.side == 'buy':
                             bloqueio_conflito = True
                             msg_conflito = f"⛔ You have a pending BUY of {p.qty}!"
             except: pass
 
             # Inputs
-            if tipo == "Sell":
+            if tipo == 'sell':
                 qtd_tenho = broker.get_position_qty(symbol)
                 if qtd_tenho <= 0:
                     st.error(f"⚠️ You don't own **{symbol}**.")
@@ -103,11 +105,12 @@ def render_tab_trade(broker, saldo_disp):
             # Botão
             desativado = (qty <= 0) or bloqueio_conflito
             if st.button("Confirme Order", disabled=desativado, width="stretch"):
-                if tipo == "Buy" and custo > saldo_disp:
+                if tipo == 'buy' and custo > saldo_disp:
                     st.error(f"Insufficient funds! Available: ${saldo_disp:.2f}")
                 else:
                     try:
                         with st.spinner("Sending..."):
+                            # Agora passa o 'tipo' diretamente porque já é minúsculo
                             broker.place_order(symbol, qty, tipo)
                             st.success("Success!")
                             time.sleep(1)
