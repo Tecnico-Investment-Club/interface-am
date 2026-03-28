@@ -7,12 +7,8 @@ services:
     container_name: interface-am-v1
     env_file:
       - .env
-
-    #
     ports:
-      - "8501:8501"
-    #
-
+      - "127.0.0.1:8501:8501"
     restart: always
     logging:
       driver: "json-file"
@@ -20,10 +16,3 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  #tunnel:
-   #image: cloudflare/cloudflared:latest
-    #container_name: interface-tunnel
-    #restart: always
-    #command: tunnel --url http://interface-am-v1:8501
-    #depends_on:
-    #  - app
