@@ -9,6 +9,7 @@ services:
       - .env
     ports:
       - "127.0.0.1:8501:8501"
+    command: streamlit run src/main.py --server.port 8501 --server.address 0.0.0.0
     restart: always
     logging:
       driver: "json-file"
