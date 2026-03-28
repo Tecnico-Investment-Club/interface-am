@@ -26,7 +26,7 @@ class AlpacaBroker(BrokerBase):
         }
 
     def place_order(self, symbol: str, qty: float, side: str):
-        order_side = OrderSide.BUY if side.lower() == "compra" else OrderSide.SELL
+        order_side = OrderSide.BUY if side.lower() == "buy" else OrderSide.SELL
         order_request = MarketOrderRequest(
             symbol=symbol,
             qty=qty,

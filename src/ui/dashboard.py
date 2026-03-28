@@ -18,24 +18,24 @@ def render_sidebar(broker, user_role, portfolio_name):
         equity_total, cash_atual, disponivel_real, custo_pendentes = 0, 0, 0, 0
 
     with st.sidebar:
-        st.write(f"Logado em: **{portfolio_name}**")
+        st.write(f"Logged in: **{portfolio_name}**")
         
-        if user_role == 'guest': st.warning("VISITANTE")
+        if user_role == 'guest': st.warning("GUEST")
         else: st.success("ADMIN")
 
-        if st.button("Sair / Logout", type="secondary"):
+        if st.button("Logout", type="secondary"):
             st.session_state['logged_in'] = False
             if 'broker' in st.session_state: del st.session_state.broker
             st.rerun()
             
         st.divider()
-        st.header("Resumo")
-        st.metric("Valor Portfólio (Equity)", f"${equity_total:,.2f}")
+        st.header("Summary")
+        st.metric("Total Equity", f"${equity_total:,.2f}")
         st.divider()
-        st.metric("Disponível para Comprar", f"${disponivel_real:,.2f}")
+        st.metric("Buying Power", f"${disponivel_real:,.2f}")
 
         if custo_pendentes > 0:
-            st.caption(f"🔒 Bloqueado: ${custo_pendentes:,.2f}")
+            st.caption(f"🔒 Locked: ${custo_pendentes:,.2f}")
     
     return disponivel_real
 
@@ -51,49 +51,51 @@ def render_tab_trade(broker, saldo_disp):
     
     c1, c2 = st.columns([1, 2])
     with c1:
-        st.subheader("Nova Ordem")
-        symbol = st.selectbox("Ativo:", lista, index=None, placeholder="...")
+        st.subheader("New Order")
+        symbol = st.selectbox("Asset:", lista, index=None, placeholder="Choose an asset...")
         
         preco = 0
         if symbol:
             try: 
                 preco = broker.get_price(symbol)
-                st.metric(f"Preço {symbol}", f"${preco:.2f}")
-            except: st.warning("Preço N/A")
+                st.metric(f"{symbol} Price", f"${preco:.2f}")
+            except: st.warning("Price N/A")
             
         if preco > 0:
-            tipo = st.radio("Op:", ["Compra", "Venda"], horizontal=True)
+            tipo_ui = st.radio("Side:", ["Buy", "Sell"], horizontal=True)
+            tipo = tipo_ui.lower()
+            
             qty = 0.0
 
-            # Verifica Conflitos
+            # Verifica Conflitos usando sempre minúsculas
             bloqueio_conflito = False
             msg_conflito = ""
             try:
                 pendentes = broker.get_pending_orders()
                 for p in pendentes:
                     if p.symbol == symbol:
-                        if tipo == "Compra" and p.side == 'sell':
+                        if tipo == 'buy' and p.side == 'sell':
                             bloqueio_conflito = True
-                            msg_conflito = f"⛔ Tens VENDA pendente de {p.qty}!"
-                        elif tipo == "Venda" and p.side == 'buy':
+                            msg_conflito = f"⛔ You have a pending SELL of {p.qty}!"
+                        elif tipo == 'sell' and p.side == 'buy':
                             bloqueio_conflito = True
-                            msg_conflito = f"⛔ Tens COMPRA pendente de {p.qty}!"
+                            msg_conflito = f"⛔ You have a pending BUY of {p.qty}!"
             except: pass
 
             # Inputs
-            if tipo == "Venda":
+            if tipo == 'sell':
                 qtd_tenho = broker.get_position_qty(symbol)
                 if qtd_tenho <= 0:
-                    st.error(f"⚠️ Não tens **{symbol}**.")
+                    st.error(f"⚠️ You don't own **{symbol}**.")
                     qty = 0.0
                 else:
-                    st.caption(f"Carteira: {qtd_tenho}")
-                    if st.checkbox("Vender Tudo"):
+                    st.caption(f"Portfolio: {qtd_tenho}")
+                    if st.checkbox("Sell All"):
                         qty = float(qtd_tenho)
                     else:
-                        qty = st.number_input("Qtd:", min_value=0.0, max_value=float(qtd_tenho), value=1.0)
+                        qty = st.number_input("Qty:", min_value=0.0, max_value=float(qtd_tenho), value=1.0)
             else:
-                qty = st.number_input("Qtd:", 1.0)
+                qty = st.number_input("Qty:", 1.0)
             
             custo = preco * qty
             st.caption(f"Total: ${custo:,.2f}")
@@ -102,21 +104,22 @@ def render_tab_trade(broker, saldo_disp):
 
             # Botão
             desativado = (qty <= 0) or bloqueio_conflito
-            if st.button("Confirmar", disabled=desativado, width="stretch"):
-                if tipo == "Compra" and custo > saldo_disp:
-                    st.error(f"Falta saldo! Disp: ${saldo_disp:.2f}")
+            if st.button("Confirme Order", disabled=desativado, width="stretch"):
+                if tipo == 'buy' and custo > saldo_disp:
+                    st.error(f"Insufficient funds! Available: ${saldo_disp:.2f}")
                 else:
                     try:
-                        with st.spinner("A enviar..."):
+                        with st.spinner("Sending..."):
+                            # Agora passa o 'tipo' diretamente porque já é minúsculo
                             broker.place_order(symbol, qty, tipo)
-                            st.success("Sucesso!")
+                            st.success("Success!")
                             time.sleep(1)
                             st.rerun()
                     except Exception as e: st.error(str(e))
     with c2: pass
 
 def render_tab_portfolio(broker):
-    if st.button("🔄 Atualizar Tabela"): st.rerun()
+    if st.button("🔄 Refresh Table"): st.rerun()
     try:
         pos = broker.get_positions()
         dados_conta = broker.get_account_summary()
@@ -136,24 +139,24 @@ def render_tab_portfolio(broker):
                     lucro_val, total_val, qtd_val = 0.0, 0.0, 0.0
 
                 data.append({
-                    "Ativo": p.symbol, 
-                    "Qtd": qtd_val,
-                    "Total": total_val,
-                    "Lucro (%)": lucro_val 
+                    "Asset": p.symbol, 
+                    "Qty": qtd_val,
+                    "Total Value": total_val,
+                    "Profit (%)": lucro_val 
                 })
         
         # Adiciona Cash se for significativo
         if cash > 1.0:
             data.append({
-                "Ativo": "CASH",
-                "Qtd": cash,
-                "Total": cash,
-                "Lucro (%)": 0.0
+                "Asset": "CASH",
+                "Qty": cash,
+                "Total Value": cash,
+                "Profit (%)": 0.0
             })
 
         if data:
             df = pd.DataFrame(data)
-            df = df.sort_values(by="Total", ascending=False)
+            df = df.sort_values(by="Total Value", ascending=False)
             
             # --- FUNÇÃO DE COR SEGURA ---
             def color_profit(val):
@@ -163,31 +166,31 @@ def render_tab_portfolio(broker):
                 return 'color: white' 
 
             # Aplica o estilo
-            styled_df = df.style.map(color_profit, subset=['Lucro (%)']).format({
-                'Total': '${:,.2f}',
-                'Lucro (%)': '{:.2%}',
-                'Qtd': '{:,.2f}'
+            styled_df = df.style.map(color_profit, subset=['Profit (%)']).format({
+                'Total Value': '${:,.2f}',
+                'Profit (%)': '{:.2%}',
+                'Qty': '{:,.2f}'
             })
 
             st.dataframe(styled_df, width="stretch", hide_index=True)
         else: 
-            st.info("Carteira Vazia.")
+            st.info("Portfolio is empty.")
             
     except Exception as e:
         # Se der erro, mostra detalhes para sabermos onde foi
-        st.error(f"Erro ao renderizar portfólio: {e}")
+        st.error(f"Error rendering portfolio: {e}")
 
 def render_tab_pendentes(broker):
-    st.subheader("Ordens na Fila")
-    if st.button("🔄 Atualizar Lista"): st.rerun()
+    st.subheader("Order Queue")
+    if st.button("🔄 Refresh List"): st.rerun()
     
     pend = broker.get_pending_orders()
     if pend:
         c1, c2, c3, c4 = st.columns([2, 2, 2, 2])
-        c1.caption("Ativo")
-        c2.caption("Operação")
-        c3.caption("Hora")
-        c4.caption("Ação")
+        c1.caption("Asset")
+        c2.caption("Operation")
+        c3.caption("Time")
+        c4.caption("Action")
         st.divider()
 
         for o in pend:
@@ -199,17 +202,17 @@ def render_tab_pendentes(broker):
                 else:
                     c2.markdown(f":red[**🔴 VENDA {o.qty}**]")
                 c3.write(o.created_at.strftime("%H:%M %d/%m"))
-                if c4.button("Cancelar", key=f"btn_{o.id}", type="primary", width="stretch",):
+                if c4.button("Cancel", key=f"btn_{o.id}", type="primary", width="stretch",):
                     broker.cancel_order(o.id)
-                    st.toast(f"Ordem {o.symbol} cancelada!")
+                    st.toast(f"Order {o.symbol} canceled!")
                     time.sleep(0.5)
                     st.rerun()
                 st.divider()
     else:
-        st.success("Tudo limpo! Nenhuma ordem pendente.")
+        st.success("All clear! No pending orders.")
 
 def render_tab_historico(broker):
-    if st.button("🔄 Carregar Histórico"): st.rerun()
+    if st.button("🔄 Load History"): st.rerun()
     
     hist = broker.get_orders_history()
     if hist:
@@ -217,10 +220,10 @@ def render_tab_historico(broker):
         for o in hist:
             if o.status == 'filled':
                 d.append({
-                    "Data": o.filled_at.strftime("%d/%m %H:%M") if o.filled_at else "-",
-                    "Sym": o.symbol, 
+                    "Date": o.filled_at.strftime("%d/%m %H:%M") if o.filled_at else "-",
+                    "Symbol": o.symbol, 
                     "Side": o.side, 
-                    "Qtd": float(o.qty),
+                    "Qty": float(o.qty),
                     "Price": float(o.filled_avg_price) if o.filled_avg_price else 0.0
                 })
         
@@ -233,19 +236,21 @@ def render_tab_historico(broker):
 
             styled_df = df.style.map(color_side, subset=['Side']).format({
                 'Price': '${:,.2f}',
-                'Qtd': '{:,.2f}'
+                'Qty': '{:,.2f}'
             })
             
             st.dataframe(styled_df,
                         width="stretch",
                         hide_index=True)
+        else:
+            st.info("No history found.")
     else:
-        st.info("Sem histórico.")
+        st.info("No history found.")
 
 # --- MAIN INTERFACE ---
 def interface_trading():
     if 'broker' not in st.session_state:
-        st.error("Erro de sessão.")
+        st.error("Session error.")
         return
 
     broker = st.session_state.broker
@@ -254,15 +259,15 @@ def interface_trading():
 
     saldo_disp = render_sidebar(broker, role, name)
 
-    st.title(f"Painel: {name}")
+    st.title(f"Dashboard: {name}")
 
     if role == 'admin':
-        t1, t2, t3, t4 = st.tabs(["💸 Negociar", "📊 Portfólio", "⏳ Pendentes", "📜 Histórico"])
+        t1, t2, t3, t4 = st.tabs(["Trade", "Portfolio", "Pending", "History"])
         with t1: render_tab_trade(broker, saldo_disp)
         with t2: render_tab_portfolio(broker)
         with t3: render_tab_pendentes(broker)
         with t4: render_tab_historico(broker)
     else:
-        t2, t4 = st.tabs(["📊 Portfólio", "📜 Histórico"])
+        t2, t4 = st.tabs(["Portfolio", "History"])
         with t2: render_tab_portfolio(broker)
         with t4: render_tab_historico(broker)

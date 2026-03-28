@@ -7,8 +7,9 @@ services:
     container_name: interface-am-v1
     env_file:
       - .env
-
-    
+    ports:
+      - "127.0.0.1:8501:8501"
+    command: streamlit run src/main.py --server.port 8501 --server.address 0.0.0.0
     restart: always
     logging:
       driver: "json-file"
@@ -16,10 +17,3 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    container_name: interface-tunnel
-    restart: always
-    command: tunnel --url http://interface-am-v1:8501
-    depends_on:
-      - app
