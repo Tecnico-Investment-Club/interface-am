@@ -115,7 +115,7 @@ class InteractiveBroker(BrokerBase):
 
         return f"{side} {qty} at {self.get_price(symbol)} {contract.currency}"  # Retorna o preço atual do ticker após a ordem (pode ser melhorado para retornar o preço de execução real)
     
-    def get_orders_history(self):
+    def get_orders_history(self): # Este não é o histórico de ordens completo
         history = self.ib.reqExecutions()
         orders_history = []
         for h in history:
@@ -127,11 +127,11 @@ class InteractiveBroker(BrokerBase):
             date = h.execution.time
             date = date.strftime("%Y-%m-%d %H:%M:%S")
             orders_history.append({
-                "client_id": h.execution.clientId,
-                "exec_id": h.execution.execId,
+                #"client_id": h.execution.clientId,
+                #"exec_id": h.execution.execId,
                 "order_id": h.execution.orderId,
                 "symbol": h.contract.symbol,
-                "side": side,
+                "Side": side,
                 "quantity": h.execution.shares,
                 "price": h.execution.price,
                 "date": date
@@ -139,7 +139,7 @@ class InteractiveBroker(BrokerBase):
             
         return orders_history
     
-    def get_pending_orders(self):
+    def get_pending_orders(self): #Falta verificar se este é o formato correto
         return self.ib.openOrders()
     
     def cancel_order(self, order_id: str):
@@ -166,6 +166,7 @@ class InteractiveBroker(BrokerBase):
     def get_all_assets(self): # TODO
         #TODO
         # Não vai ser possível fazer selectbox, aqui a malta vai meter logo o symbolo
+        return ["AAPL", "TSLA", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "JPM", "V", "DIS"]
         raise ValueError("Não quero aqui selectbox")
     
     def disconnect(self):

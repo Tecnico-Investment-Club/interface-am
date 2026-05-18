@@ -62,4 +62,15 @@ def tela_login():
                     time.sleep(1)
                     st.rerun()
                 except Exception as e:
+                    client_id = 2
+                    while client_id < 10:  # Tentativas de reconexão
+                        try:
+                            st.session_state.broker = InteractiveBroker(host='host.docker.internal', client_id=client_id)
+                            st.success(f"Welcome to {user_choice}!")
+                            time.sleep(1)
+                            st.rerun()
+                            break
+                        except Exception as e:
+                            client_id += 1
+                            time.sleep(1)
                     st.error(f"API Connection Error: {e}")

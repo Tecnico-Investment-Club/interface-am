@@ -59,7 +59,7 @@ def render_tab_trade(broker, saldo_disp):
         preco = 0
         if symbol:
             try: 
-                preco = broker.get_price(symbol)
+                preco = float(broker.get_price(symbol))
                 st.metric(f"{symbol} Price", f"${preco:.2f}")
             except: st.warning("Price N/A")
             
@@ -222,8 +222,6 @@ def render_tab_portfolio(broker): # Check TODOs
     except Exception as e:
         # Se der erro, mostra detalhes para sabermos onde foi
         st.error(f"Error rendering portfolio: {e}")
-
-    
 
 def render_tab_pendentes(broker):
     st.subheader("Order Queue")
