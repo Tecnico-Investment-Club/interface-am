@@ -1,0 +1,6 @@
+streamlit
+pandas
+alpaca-py
+python-dotenv
+ib_async
+plotly

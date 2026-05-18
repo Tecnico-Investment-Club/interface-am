@@ -1,0 +1,19 @@
+#version: "3.8"
+
+services:
+  app:
+    image: interface-am-img
+    build: .
+    container_name: interface-am-v1
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8501:8501"
+    command: streamlit run src/main.py --server.port 8501 --server.address 0.0.0.0
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+

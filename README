@@ -1,0 +1,4 @@
+
+Para descobrir o link do site, correr no termius:
+
+docker compose logs tunnel | grep "trycloudflare.com"
